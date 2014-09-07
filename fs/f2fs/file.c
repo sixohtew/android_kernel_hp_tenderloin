@@ -39,7 +39,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 
 	f2fs_balance_fs(sbi);
 
-	sb_start_pagefault(inode->i_sb);
+	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
 
 	/* block allocation */
 	ilock = mutex_lock_op(sbi);
@@ -92,14 +92,12 @@ mapped:
 	/* fill the page */
 	wait_on_page_writeback(page);
 out:
-	sb_end_pagefault(inode->i_sb);
 	return block_page_mkwrite_return(err);
 }
 
 static const struct vm_operations_struct f2fs_file_vm_ops = {
 	.fault		= filemap_fault,
 	.page_mkwrite	= f2fs_vm_page_mkwrite,
-	.remap_pages	= generic_file_remap_pages,
 };
 
 static int get_parent_ino(struct inode *inode, nid_t *pino)
@@ -641,7 +639,7 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
 out:
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
 		return ret;
 	}
 	default:
